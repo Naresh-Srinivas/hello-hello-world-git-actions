@@ -25,14 +25,18 @@ jobs:
         run: |
           echo "## Release Notes for $(date)" > release-notes.md
           echo "### Retention Team" >> release-notes.md
-          git log --oneline --no-merges release-retention/daily/* >> retention-commits.txt
+          git log --oneline --no-merges "release-retention/daily/*" >> retention-commits.txt
           cat retention-commits.txt >> release-notes.md
           echo "### Activation Team" >> release-notes.md
-          git log --oneline --no-merges release-activation/daily/* >> activation-commits.txt
+          git log --oneline --no-merges "release-activation/daily/*" >> activation-commits.txt
           cat activation-commits.txt >> release-notes.md
           echo "### Nek Team" >> release-notes.md
-          git log --oneline --no-merges release-nek/daily/* >> nek-commits.txt
+          git log --oneline --no-merges "release-nek/daily/*" >> nek-commits.txt
           cat nek-commits.txt >> release-notes.md
+
+      - name: Debug Step - List files in the repository
+        run: |
+          ls -la
 
       - name: Commit and Push Release Notes
         run: |
