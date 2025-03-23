@@ -1,90 +1,44 @@
 name: Generate Release Notes
 
 on:
-  release:
-    types: [published]  # Trigger when a release is published
+  push:
+    branches:
+      - master  # Trigger the workflow when changes are pushed to the master branch
 
 jobs:
-  generate_release_notes:
+  generate-release-notes:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout the repository
+      - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Generate Release Notes
+      - name: Set up Git
         run: |
-          # Create the script that generates the release notes
-          cat << 'EOF' > generate_release_notes.sh
-          #!/bin/bash
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
 
-          # Variables
-          release_branch="release/daily/$(date +'%Y-%m-%d')"  # Release branch based on current date
-          retention_branch="release-retention/daily/$(date +'%Y-%m-%d')"
-          activation_branch="release-activation/daily/$(date +'%Y-%m-%d')"
-          nek_branch="release-nek/daily/$(date +'%Y-%m-%d')"
-          output_file="release_notes.md"  # Output Markdown file
+      - name: Get Commit Log for Retention Team
+        run: |
+          echo "### Retention Team" >> release-notes.md
+          git log --oneline --no-merges release-retention/daily/* >> retention-commits.txt
+          cat retention-commits.txt >> release-notes.md
 
-          # Clear previous release notes
-          echo "# Release Notes for Release Branch $(git describe --tags --abbrev=0)" > $output_file
-          echo "" >> $output_file
+      - name: Get Commit Log for Activation Team
+        run: |
+          echo "### Activation Team" >> release-notes.md
+          git log --oneline --no-merges release-activation/daily/* >> activation-commits.txt
+          cat activation-commits.txt >> release-notes.md
 
-          # Function to generate release notes for each team
-          generate_team_notes() {
-            local team_name=$1
-            local team_branch=$2
+      - name: Get Commit Log for Nek Team
+        run: |
+          echo "### Nek Team" >> release-notes.md
+          git log --oneline --no-merges release-nek/daily/* >> nek-commits.txt
+          cat nek-commits.txt >> release-notes.md
 
-            echo "Fetching commits for $team_name team..."
-
-            # Append team name to the release note
-            echo "## $team_name Team" >> $output_file
-            echo "" >> $output_file
-
-            # Get the commits from each team's branch against the release branch
-            commits=$(git log --oneline "$release_branch..$team_branch")
-
-            if [[ -z "$commits" ]]; then
-              echo "No commits for $team_name team."
-            else
-              # Format the commits and append to the release note
-              while IFS= read -r commit; do
-                commit_id=$(echo $commit | awk '{print $1}')
-                # Append the commit ID to the release notes file
-                echo "- Commit ID: $commit_id" >> $output_file
-              done <<< "$commits"
-            fi
-
-            echo "" >> $output_file
-          }
-
-          # Generate notes for each team
-          generate_team_notes "Retention" "$retention_branch"
-          generate_team_notes "Activation" "$activation_branch"
-          generate_team_notes "Nek" "$nek_branch"
-
-          # Finish the release note with additional information
-          echo "---" >> $output_file
-          echo "*Release made on $(date) by GitHub Actions.*" >> $output_file
-
-          # Output the location of the release notes
-          echo "Release notes generated: $output_file"
-          EOF
-
-          # Make the script executable
-          chmod +x generate_release_notes.sh
-
-          # Run the script to generate release notes
-          ./generate_release_notes.sh
-
-      - name: Upload release notes as artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: release-notes
-          path: release_notes.md
-
-      - name: Create GitHub release with notes
-        uses: softprops/action-gh-release@v1
-        with:
-          files: release_notes.md
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit and Push Release Notes
+        run: |
+          echo "## Release Notes for $(date)" > release-notes.md
+          cat release-notes.md
+          git add release-notes.md
+          git commit -m "Update release notes"
+          git push origin HEAD
