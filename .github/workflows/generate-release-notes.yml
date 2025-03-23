@@ -27,17 +27,9 @@ jobs:
         run: |
           echo "## Release Notes for $(date)" > release-notes.md
 
-          # Get merged commits from release-retention branches
-          echo "### Retention Team" >> release-notes.md
-          git log --oneline --no-merges --grep="retention" release/daily/* >> release-notes.md || echo "No retention commits" >> release-notes.md
-
-          # Get merged commits from release-activation branches
-          echo "### Activation Team" >> release-notes.md
-          git log --oneline --no-merges --grep="activation" release/daily/* >> release-notes.md || echo "No activation commits" >> release-notes.md
-
-          # Get merged commits from release-nek branches
-          echo "### Nek Team" >> release-notes.md
-          git log --oneline --no-merges --grep="nek" release/daily/* >> release-notes.md || echo "No nek commits" >> release-notes.md
+          # Get all commits from release branches to debug the commit messages
+          echo "### All Commits (for Debugging)" >> release-notes.md
+          git log --oneline release/daily/* >> release-notes.md
 
           # Show the file content for debugging
           cat release-notes.md
