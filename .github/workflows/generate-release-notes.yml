@@ -1,5 +1,8 @@
 name: Generate Release Notes
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
