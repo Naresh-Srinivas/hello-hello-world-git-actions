@@ -29,15 +29,15 @@ jobs:
           
           # For Retention Team
           echo "### Retention Team" >> release-notes.md
-          git log --oneline --no-merges "release-retention/daily/*" || echo "No commits found for Retention Team" >> release-notes.md
+          git log --oneline --no-merges release-retention/daily/* || echo "No commits found for Retention Team" >> release-notes.md
 
           # For Activation Team
           echo "### Activation Team" >> release-notes.md
-          git log --oneline --no-merges "release-activation/daily/*" || echo "No commits found for Activation Team" >> release-notes.md
+          git log --oneline --no-merges release-activation/daily/* || echo "No commits found for Activation Team" >> release-notes.md
           
           # For Nek Team
           echo "### Nek Team" >> release-notes.md
-          git log --oneline --no-merges "release-nek/daily/*" || echo "No commits found for Nek Team" >> release-notes.md
+          git log --oneline --no-merges release-nek/daily/* || echo "No commits found for Nek Team" >> release-notes.md
           
           # Show the file content for debugging
           cat release-notes.md
