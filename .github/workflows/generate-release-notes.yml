@@ -8,7 +8,7 @@ permissions:
 on:
   push:
     branches:
-      - main  # This will run when a release branch is merged into main
+      - main  # Trigger when a release branch is merged into main
 
 jobs:
   generate-release-notes:
@@ -29,21 +29,15 @@ jobs:
           
           # For Retention Team
           echo "### Retention Team" >> release-notes.md
-          git log --oneline --no-merges "release-retention/daily/*" | while read commit_hash commit_message; do
-            echo "- $commit_message ($commit_hash)" >> release-notes.md
-          done
-          
+          git log --oneline --no-merges "release-retention/daily/*" || echo "No commits found for Retention Team" >> release-notes.md
+
           # For Activation Team
           echo "### Activation Team" >> release-notes.md
-          git log --oneline --no-merges "release-activation/daily/*" | while read commit_hash commit_message; do
-            echo "- $commit_message ($commit_hash)" >> release-notes.md
-          done
+          git log --oneline --no-merges "release-activation/daily/*" || echo "No commits found for Activation Team" >> release-notes.md
           
           # For Nek Team
           echo "### Nek Team" >> release-notes.md
-          git log --oneline --no-merges "release-nek/daily/*" | while read commit_hash commit_message; do
-            echo "- $commit_message ($commit_hash)" >> release-notes.md
-          done
+          git log --oneline --no-merges "release-nek/daily/*" || echo "No commits found for Nek Team" >> release-notes.md
           
           # Show the file content for debugging
           cat release-notes.md
@@ -57,7 +51,7 @@ jobs:
       - name: Create Tag for Release
         id: create_tag
         run: |
-          TAG_NAME="v$(date +'%Y%m%d%H%M%S')"  # Use current date as tag, or set your custom version
+          TAG_NAME="v$(date +'%Y%m%d%H%M%S')"  # Tag with current date
           echo "Creating tag $TAG_NAME"
           git tag $TAG_NAME
           git push origin $TAG_NAME
