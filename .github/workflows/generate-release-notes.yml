@@ -26,19 +26,19 @@ jobs:
       - name: Generate Release Notes
         run: |
           echo "## Release Notes for $(date)" > release-notes.md
-          
-          # For Retention Team
-          echo "### Retention Team" >> release-notes.md
-          git log --oneline --no-merges release-retention/daily/* || echo "No commits found for Retention Team" >> release-notes.md
 
-          # For Activation Team
+          # Get merged commits from release-retention branches
+          echo "### Retention Team" >> release-notes.md
+          git log --oneline --no-merges --grep="retention" release/daily/* >> release-notes.md || echo "No retention commits" >> release-notes.md
+
+          # Get merged commits from release-activation branches
           echo "### Activation Team" >> release-notes.md
-          git log --oneline --no-merges release-activation/daily/* || echo "No commits found for Activation Team" >> release-notes.md
-          
-          # For Nek Team
+          git log --oneline --no-merges --grep="activation" release/daily/* >> release-notes.md || echo "No activation commits" >> release-notes.md
+
+          # Get merged commits from release-nek branches
           echo "### Nek Team" >> release-notes.md
-          git log --oneline --no-merges release-nek/daily/* || echo "No commits found for Nek Team" >> release-notes.md
-          
+          git log --oneline --no-merges --grep="nek" release/daily/* >> release-notes.md || echo "No nek commits" >> release-notes.md
+
           # Show the file content for debugging
           cat release-notes.md
 
@@ -46,7 +46,7 @@ jobs:
         run: |
           git add release-notes.md
           git commit -m "Update release notes"
-          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/Naresh-Srinivas/hello-hello-world-git-actions.git HEAD:main
+          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
 
       - name: Create Tag for Release
         id: create_tag
