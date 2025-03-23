@@ -29,15 +29,24 @@ jobs:
           
           # For Retention Team
           echo "### Retention Team" >> release-notes.md
-          git log --oneline --no-merges "release-retention/daily/*" >> release-notes.md
+          git log --oneline --no-merges "release-retention/daily/*" | while read commit_hash commit_message; do
+            echo "- $commit_message ($commit_hash)" >> release-notes.md
+          done
           
           # For Activation Team
           echo "### Activation Team" >> release-notes.md
-          git log --oneline --no-merges "release-activation/daily/*" >> release-notes.md
+          git log --oneline --no-merges "release-activation/daily/*" | while read commit_hash commit_message; do
+            echo "- $commit_message ($commit_hash)" >> release-notes.md
+          done
           
           # For Nek Team
           echo "### Nek Team" >> release-notes.md
-          git log --oneline --no-merges "release-nek/daily/*" >> release-notes.md
+          git log --oneline --no-merges "release-nek/daily/*" | while read commit_hash commit_message; do
+            echo "- $commit_message ($commit_hash)" >> release-notes.md
+          done
+          
+          # Show the file content for debugging
+          cat release-notes.md
 
       - name: Commit Release Notes
         run: |
