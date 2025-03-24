@@ -36,8 +36,8 @@ jobs:
           MAIN_PARENT=$(git rev-parse $LAST_MERGE^1)
           MERGED_BRANCH=$(git rev-parse $LAST_MERGE^2)
 
-          # Get only commits that are unique to the merged branch
-          NOTES=$(git log $MAIN_PARENT..$MERGED_BRANCH --pretty=format:'%h - %s' --no-merges | sed ':a;N;$!ba;s/\n/\\n/g')
+          # Get only commits that are unique to the merged branch and format them nicely
+          NOTES=$(git log $MAIN_PARENT..$MERGED_BRANCH --pretty=format:'- **%h**: %s' --no-merges | sed ':a;N;$!ba;s/\n/\\n/g')
 
           echo "NOTES=$NOTES" >> $GITHUB_ENV
 
@@ -48,6 +48,7 @@ jobs:
           name: Release ${{ env.VERSION }}
           body: |
             ## Changes in this release
+
             ${{ env.NOTES }}
           draft: false
           prerelease: false
@@ -57,6 +58,7 @@ jobs:
       - name: Update CHANGELOG
         run: |
           echo "## Release ${{ env.VERSION }}" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
           echo "${{ env.NOTES }}" >> CHANGELOG.md
           echo "" >> CHANGELOG.md
           git add CHANGELOG.md
