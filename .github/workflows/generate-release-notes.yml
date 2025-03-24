@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history to track commits correctly
 
       - name: Set Git Identity
         run: |
@@ -27,7 +29,16 @@ jobs:
       - name: Generate Release Notes
         id: notes
         run: |
-          echo "NOTES=$(git log --pretty=format:'- %s' --no-merges --since='1 day ago' | sed ':a;N;$!ba;s/\n/\\n/g')" >> $GITHUB_ENV
+          # Get the latest merge commit
+          LAST_MERGE=$(git log --merges --pretty=format:'%H' -n 1)
+
+          # Get the parent branch of the merge commit
+          MERGED_BRANCH=$(git log --pretty=format:'%P' -n 1 $LAST_MERGE | awk '{print $2}')
+
+          # Get all commits from the merged branch
+          NOTES=$(git log $MERGED_BRANCH --pretty=format:'%h - %s' --no-merges --reverse | sed ':a;N;$!ba;s/\n/\\n/g')
+
+          echo "NOTES=$NOTES" >> $GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
