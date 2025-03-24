@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write  # Grant write permissions to GITHUB_TOKEN
+
 jobs:
   generate-release-notes:
     runs-on: ubuntu-latest
@@ -47,9 +50,11 @@ jobs:
           echo -e "$NOTES" | tee -a CHANGELOG.md
 
       - name: Commit and Push CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
           git add CHANGELOG.md
           git commit -m "Update release notes for $TODAY" || echo "No changes to commit"
-          git push origin main
+          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git main
