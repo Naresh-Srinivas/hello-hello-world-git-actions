@@ -3,7 +3,7 @@ name: Create Release on Merge
 on:
   push:
     branches:
-      - main  # Trigger when merged into `main`
+      - main  # Trigger when the release branch is merged into `main`
 
 jobs:
   release:
@@ -15,54 +15,54 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history needed to track commits
+          fetch-depth: 0  # Fetch full history for commit tracking
 
       - name: Set Git Identity
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
 
-      - name: Generate release version
+      - name: Generate Release Version
         id: version
-        run: echo "VERSION=$(date +'%Y.%m.%d')" >> $GITHUB_ENV
+        run: echo "VERSION=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
-      - name: Generate Release Notes
-        id: notes
+      - name: Detect Release and Team Branches
+        id: detect_branches
         run: |
-          # Get the latest merge commit of the release branch into main
-          LAST_MERGE=$(git log --merges --pretty=format:'%H' -n 1)
-          
-          # Get the release branch name from the merge commit
-          RELEASE_BRANCH=$(git log -1 --pretty=format:'%P' $LAST_MERGE | awk '{print $2}')
-          
-          # Define team branches based on naming conventions
-          RETENTION_BRANCH="release-retention/"
-          ACTIVATION_BRANCH="release-activation/"
-          
-          # Initialize release notes
+          DATE=$(date +'%Y-%m-%d')
+
+          # Define expected branch names
+          RELEASE_BRANCH="release/daily/$DATE"
+          RETENTION_BRANCH="release-retention/daily/$DATE"
+          ACTIVATION_BRANCH="release-activation/daily/$DATE"
+
+          echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> $GITHUB_ENV
+          echo "RETENTION_BRANCH=$RETENTION_BRANCH" >> $GITHUB_ENV
+          echo "ACTIVATION_BRANCH=$ACTIVATION_BRANCH" >> $GITHUB_ENV
+
+      - name: Gather Commits
+        id: collect_commits
+        run: |
           NOTES="## Changes in this release\n"
 
-          # Extract unique commits per team branch
+          # Function to extract commits from a branch
           get_commits() {
             BRANCH=$1
             CATEGORY=$2
-            COMMITS=$(git log --pretty=format:'- **%h**: %s' --no-merges $(git merge-base main $BRANCH)..$BRANCH)
+
+            COMMITS=$(git log $(git merge-base main $BRANCH)..$BRANCH --pretty=format:'- **%h**: %s' --no-merges)
+
             if [[ ! -z "$COMMITS" ]]; then
               NOTES+="\n### $CATEGORY\n$COMMITS\n"
             fi
           }
 
-          # Process team branches
-          for BRANCH in $(git branch -r | grep -E "$RETENTION_BRANCH|$ACTIVATION_BRANCH"); do
-            if [[ $BRANCH == *"$RETENTION_BRANCH"* ]]; then
-              get_commits "$BRANCH" "Retention"
-            elif [[ $BRANCH == *"$ACTIVATION_BRANCH"* ]]; then
-              get_commits "$BRANCH" "Activation"
-            fi
-          done
+          get_commits "$RETENTION_BRANCH" "Retention"
+          get_commits "$ACTIVATION_BRANCH" "Activation"
 
-          # Store results in environment
-          echo "NOTES=$NOTES" >> $GITHUB_ENV
+          echo "NOTES<<EOF" >> $GITHUB_ENV
+          echo -e "$NOTES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
