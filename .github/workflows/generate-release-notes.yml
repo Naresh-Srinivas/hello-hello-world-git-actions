@@ -6,41 +6,48 @@ on:
       - main
 
 jobs:
-  generate-release-notes:
+  release-notes:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Ensure we get full commit history
 
-      - name: Set release date
-        run: echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-
-      - name: Get new commits from retention and activation branches
+      - name: Set up Git
         run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "github-actions"
+
+      - name: Generate Release Notes
+        run: |
+          TODAY=$(date +'%Y-%m-%d')
+          RELEASE_BRANCH="origin/release/daily/$TODAY"
+          ACTIVATION_BRANCH="origin/release-activation/daily/$TODAY"
+          RETENTION_BRANCH="origin/release-retention/daily/$TODAY"
+
           RELEASE_NOTES="## Changes in this release\n\n"
 
-          # Check retention branch
-          RETENTION_COMMITS=$(git log --oneline --no-merges $(git merge-base origin/main origin/release-retention/daily/$TODAY)..origin/release-retention/daily/$TODAY)
-          if [[ ! -z "$RETENTION_COMMITS" ]]; then
-            RELEASE_NOTES+="### Retention\n$RETENTION_COMMITS\n\n"
-          fi
+          get_commits() {
+            local branch=$1
+            if git ls-remote --exit-code --heads origin "$branch" &> /dev/null; then
+              BASE=$(git merge-base origin/main $branch)
+              COMMITS=$(git log --oneline --no-merges $BASE..$branch)
+              if [[ ! -z "$COMMITS" ]]; then
+                RELEASE_NOTES+="### $(basename $branch)\n$COMMITS\n\n"
+              fi
+            else
+              echo "Branch $branch not found. Skipping..."
+            fi
+          }
 
-          # Check activation branch
-          ACTIVATION_COMMITS=$(git log --oneline --no-merges $(git merge-base origin/main origin/release-activation/daily/$TODAY)..origin/release-activation/daily/$TODAY)
-          if [[ ! -z "$ACTIVATION_COMMITS" ]]; then
-            RELEASE_NOTES+="### Activation\n$ACTIVATION_COMMITS\n\n"
-          fi
+          get_commits "$ACTIVATION_BRANCH"
+          get_commits "$RETENTION_BRANCH"
 
-          # Save release notes to a file
           echo -e "$RELEASE_NOTES" > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
 
-      - name: Commit and push release notes
+      - name: Commit and Push Changes
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions@github.com"
           git add RELEASE_NOTES.md
-          git commit -m "Update release notes for $TODAY" || echo "No changes to commit"
+          git commit -m "Update release notes for $(date +'%Y-%m-%d')" || echo "No changes to commit"
           git push || echo "No changes to push"
