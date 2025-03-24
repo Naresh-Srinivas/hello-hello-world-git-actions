@@ -26,7 +26,8 @@ jobs:
 
       - name: Generate Release Notes
         id: notes
-        run: echo "NOTES=$(git log --oneline --no-merges -n 10 | sed ':a;N;$!ba;s/\n/\\n/g')" >> $GITHUB_ENV
+        run: |
+          echo "NOTES=$(git log --pretty=format:'- %s' -n 10 | sed ':a;N;$!ba;s/\n/\\n/g')" >> $GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
