@@ -29,15 +29,35 @@ jobs:
       - name: Generate Release Notes
         id: notes
         run: |
-          # Get the latest merge commit
+          # Get the latest merge commit of the main release branch
           LAST_MERGE=$(git log --merges --pretty=format:'%H' -n 1)
 
-          # Get the first parent (main branch) and second parent (merged branch)
-          MAIN_PARENT=$(git rev-parse $LAST_MERGE^1)
-          MERGED_BRANCH=$(git rev-parse $LAST_MERGE^2)
+          # Identify the main release branch that was merged
+          RELEASE_BRANCH=$(git rev-parse $LAST_MERGE^2)
 
-          # Get only commits that are unique to the merged branch and format them nicely
-          NOTES=$(git log $MAIN_PARENT..$MERGED_BRANCH --pretty=format:'- **%h**: %s' --no-merges | sed ':a;N;$!ba;s/\n/\\n/g')
+          # Extract team branches merged into the release branch
+          TEAM_BRANCHES=$(git log --merges --pretty=format:'%H' $RELEASE_BRANCH | xargs -I {} git rev-parse {}^2)
+
+          # Initialize release notes
+          NOTES="## Changes in this release\n"
+
+          for BRANCH in $TEAM_BRANCHES; do
+            BRANCH_NAME=$(git branch -r --contains $BRANCH | grep -o 'release-[^/]*' | head -n 1)
+
+            if [[ $BRANCH_NAME == "release-retention" ]]; then
+              NOTES+="\n### Retention\n"
+            elif [[ $BRANCH_NAME == "release-activation" ]]; then
+              NOTES+="\n### Activation\n"
+            else
+              NOTES+="\n### Other Changes ($BRANCH_NAME)\n"
+            fi
+
+            # Get commits unique to this branch
+            COMMITS=$(git log $(git merge-base main $BRANCH)..$BRANCH --pretty=format:'- **%h**: %s' --no-merges)
+
+            # Append commits to notes
+            NOTES+="$COMMITS\n"
+          done
 
           echo "NOTES=$NOTES" >> $GITHUB_ENV
 
@@ -46,10 +66,7 @@ jobs:
         with:
           tag_name: ${{ env.VERSION }}
           name: Release ${{ env.VERSION }}
-          body: |
-            ## Changes in this release
-
-            ${{ env.NOTES }}
+          body: "${{ env.NOTES }}"
           draft: false
           prerelease: false
         env:
@@ -57,10 +74,8 @@ jobs:
 
       - name: Update CHANGELOG
         run: |
-          echo "## Release ${{ env.VERSION }}" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "${{ env.NOTES }}" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
+          echo -e "## Release ${{ env.VERSION }}\n" >> CHANGELOG.md
+          echo -e "${{ env.NOTES }}" >> CHANGELOG.md
           git add CHANGELOG.md
           git commit -m "Update changelog for ${{ env.VERSION }}"
           git push origin main
