@@ -22,3 +22,7 @@ fe125ad - Initial commit\nafa58f4 - added initial code\nddc6ba3 - added release 
 ## Release 2025.03.24
 28cb1f2 - added nek impl\na92363e - added yml file
 
+## Release 2025.03.24
+
+- **5045a07**: added activation code\n- **406e88d**: updated yml
+
