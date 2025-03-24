@@ -8,51 +8,45 @@ permissions:
 on:
   push:
     branches:
-      - main  # Trigger when a release branch is merged into main
+      - main  # Trigger when code is merged into `main`
 
 jobs:
-  generate-release-notes:
+  release:
+    permissions:
+      contents: write  # Required to publish the release
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Set up Git
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+      - name: Generate release version
+        id: version
+        run: echo "VERSION=$(date +'%Y.%m.%d')" >> $GITHUB_ENV
 
       - name: Generate Release Notes
-        run: |
-          echo "## Release Notes for $(date)" > release-notes.md
-
-          # Get all commits from release branches to debug the commit messages
-          echo "### All Commits (for Debugging)" >> release-notes.md
-          git log --oneline release/daily/* >> release-notes.md
-
-          # Show the file content for debugging
-          cat release-notes.md
-
-      - name: Commit Release Notes
-        run: |
-          git add release-notes.md
-          git commit -m "Update release notes"
-          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
-
-      - name: Create Tag for Release
-        id: create_tag
-        run: |
-          TAG_NAME="v$(date +'%Y%m%d%H%M%S')"  # Tag with current date
-          echo "Creating tag $TAG_NAME"
-          git tag $TAG_NAME
-          git push origin $TAG_NAME
-          echo "::set-output name=tag_name::$TAG_NAME"
+        id: notes
+        run: echo "NOTES=$(git log --oneline --no-merges -n 10 | sed ':a;N;$!ba;s/\n/\\n/g')" >> $GITHUB_ENV
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.create_tag.outputs.tag_name }}  # Use the tag created earlier
-          files: release-notes.md
+          tag_name: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }}
+          body: |
+            ## Changes in this release
+            ${{ env.NOTES }}
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update CHANGELOG
+        run: |
+          echo "## Release ${{ env.VERSION }}" >> CHANGELOG.md
+          echo "${{ env.NOTES }}" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git add CHANGELOG.md
+          git commit -m "Update changelog for ${{ env.VERSION }}"
+          git push origin main
+
