@@ -3,19 +3,19 @@ name: Create Release on Merge
 on:
   push:
     branches:
-      - main  # Trigger when code is merged into `main`
+      - main  # Trigger when merged into `main`
 
 jobs:
   release:
     permissions:
-      contents: write  # Required to publish the release
+      contents: write
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch full history to track commits correctly
+          fetch-depth: 0  # Full history needed to track commits
 
       - name: Set Git Identity
         run: |
@@ -29,36 +29,39 @@ jobs:
       - name: Generate Release Notes
         id: notes
         run: |
-          # Get the latest merge commit of the main release branch
+          # Get the latest merge commit of the release branch into main
           LAST_MERGE=$(git log --merges --pretty=format:'%H' -n 1)
-
-          # Identify the main release branch that was merged
-          RELEASE_BRANCH=$(git rev-parse $LAST_MERGE^2)
-
-          # Extract team branches merged into the release branch
-          TEAM_BRANCHES=$(git log --merges --pretty=format:'%H' $RELEASE_BRANCH | xargs -I {} git rev-parse {}^2)
-
+          
+          # Get the release branch name from the merge commit
+          RELEASE_BRANCH=$(git log -1 --pretty=format:'%P' $LAST_MERGE | awk '{print $2}')
+          
+          # Define team branches based on naming conventions
+          RETENTION_BRANCH="release-retention/"
+          ACTIVATION_BRANCH="release-activation/"
+          
           # Initialize release notes
           NOTES="## Changes in this release\n"
 
-          for BRANCH in $TEAM_BRANCHES; do
-            BRANCH_NAME=$(git branch -r --contains $BRANCH | grep -o 'release-[^/]*' | head -n 1)
-
-            if [[ $BRANCH_NAME == "release-retention" ]]; then
-              NOTES+="\n### Retention\n"
-            elif [[ $BRANCH_NAME == "release-activation" ]]; then
-              NOTES+="\n### Activation\n"
-            else
-              NOTES+="\n### Other Changes ($BRANCH_NAME)\n"
+          # Extract unique commits per team branch
+          get_commits() {
+            BRANCH=$1
+            CATEGORY=$2
+            COMMITS=$(git log --pretty=format:'- **%h**: %s' --no-merges $(git merge-base main $BRANCH)..$BRANCH)
+            if [[ ! -z "$COMMITS" ]]; then
+              NOTES+="\n### $CATEGORY\n$COMMITS\n"
             fi
+          }
 
-            # Get commits unique to this branch
-            COMMITS=$(git log $(git merge-base main $BRANCH)..$BRANCH --pretty=format:'- **%h**: %s' --no-merges)
-
-            # Append commits to notes
-            NOTES+="$COMMITS\n"
+          # Process team branches
+          for BRANCH in $(git branch -r | grep -E "$RETENTION_BRANCH|$ACTIVATION_BRANCH"); do
+            if [[ $BRANCH == *"$RETENTION_BRANCH"* ]]; then
+              get_commits "$BRANCH" "Retention"
+            elif [[ $BRANCH == *"$ACTIVATION_BRANCH"* ]]; then
+              get_commits "$BRANCH" "Activation"
+            fi
           done
 
+          # Store results in environment
           echo "NOTES=$NOTES" >> $GITHUB_ENV
 
       - name: Create GitHub Release
