@@ -32,11 +32,12 @@ jobs:
           # Get the latest merge commit
           LAST_MERGE=$(git log --merges --pretty=format:'%H' -n 1)
 
-          # Get the parent branch of the merge commit
-          MERGED_BRANCH=$(git log --pretty=format:'%P' -n 1 $LAST_MERGE | awk '{print $2}')
+          # Get the first parent (main branch) and second parent (merged branch)
+          MAIN_PARENT=$(git rev-parse $LAST_MERGE^1)
+          MERGED_BRANCH=$(git rev-parse $LAST_MERGE^2)
 
-          # Get all commits from the merged branch
-          NOTES=$(git log $MERGED_BRANCH --pretty=format:'%h - %s' --no-merges --reverse | sed ':a;N;$!ba;s/\n/\\n/g')
+          # Get only commits that are unique to the merged branch
+          NOTES=$(git log $MAIN_PARENT..$MERGED_BRANCH --pretty=format:'%h - %s' --no-merges | sed ':a;N;$!ba;s/\n/\\n/g')
 
           echo "NOTES=$NOTES" >> $GITHUB_ENV
 
