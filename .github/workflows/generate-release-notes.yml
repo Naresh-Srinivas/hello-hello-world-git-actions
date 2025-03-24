@@ -1,9 +1,4 @@
-name: Generate and Publish Release Notes
-
-permissions:
-  contents: write  # Grants write access to repository contents
-  pull-requests: write  # Grants write access to pull requests
-  actions: write  # Grants permissions to create releases
+name: Create Release on Merge
 
 on:
   push:
@@ -19,6 +14,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set Git Identity
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
 
       - name: Generate release version
         id: version
@@ -49,4 +49,3 @@ jobs:
           git add CHANGELOG.md
           git commit -m "Update changelog for ${{ env.VERSION }}"
           git push origin main
-
