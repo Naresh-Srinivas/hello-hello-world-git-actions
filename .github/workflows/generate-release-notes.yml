@@ -5,56 +5,42 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write  # Grant write permissions to GITHUB_TOKEN
-
 jobs:
   generate-release-notes:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Ensure all history and branches are fetched
+          fetch-depth: 0  # Ensure we get full commit history
 
-      - name: Set up environment variables
+      - name: Set release date
         run: echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
-      - name: Generate Release Notes
+      - name: Get new commits from retention and activation branches
         run: |
-          RELEASE_BRANCH="release/daily/$TODAY"
-          RETENTION_BRANCH="release-retention/daily/$TODAY"
-          ACTIVATION_BRANCH="release-activation/daily/$TODAY"
+          RELEASE_NOTES="## Changes in this release\n\n"
 
-          NOTES="## Changes in this release\n\n"
+          # Check retention branch
+          RETENTION_COMMITS=$(git log --oneline --no-merges $(git merge-base origin/main origin/release-retention/daily/$TODAY)..origin/release-retention/daily/$TODAY)
+          if [[ ! -z "$RETENTION_COMMITS" ]]; then
+            RELEASE_NOTES+="### Retention\n$RETENTION_COMMITS\n\n"
+          fi
 
-          get_commits() {
-            local branch=$1
-            if git show-ref --quiet refs/remotes/origin/$branch; then
-              local base=$(git merge-base main origin/$branch)
-              local commits=$(git log $base..origin/$branch --oneline)
-              if [[ ! -z "$commits" ]]; then
-                NOTES+="### ${branch}\n"
-                while IFS= read -r line; do
-                  NOTES+="- $line\n"
-                done <<< "$commits"
-                NOTES+="\n"
-              fi
-            fi
-          }
+          # Check activation branch
+          ACTIVATION_COMMITS=$(git log --oneline --no-merges $(git merge-base origin/main origin/release-activation/daily/$TODAY)..origin/release-activation/daily/$TODAY)
+          if [[ ! -z "$ACTIVATION_COMMITS" ]]; then
+            RELEASE_NOTES+="### Activation\n$ACTIVATION_COMMITS\n\n"
+          fi
 
-          get_commits "$RETENTION_BRANCH"
-          get_commits "$ACTIVATION_BRANCH"
+          # Save release notes to a file
+          echo -e "$RELEASE_NOTES" > RELEASE_NOTES.md
 
-          echo -e "$NOTES" | tee -a CHANGELOG.md
-
-      - name: Commit and Push CHANGELOG.md
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit and push release notes
         run: |
+          git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
-          git add CHANGELOG.md
+          git add RELEASE_NOTES.md
           git commit -m "Update release notes for $TODAY" || echo "No changes to commit"
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git main
+          git push || echo "No changes to push"
