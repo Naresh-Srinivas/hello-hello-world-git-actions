@@ -1,84 +1,55 @@
-name: Create Release on Merge
+name: Generate Release Notes
 
 on:
   push:
     branches:
-      - main  # Trigger when the release branch is merged into `main`
+      - main
 
 jobs:
-  release:
-    permissions:
-      contents: write
+  generate-release-notes:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch full history for commit tracking
+          fetch-depth: 0  # Ensure all history and branches are fetched
 
-      - name: Set Git Identity
+      - name: Set up environment variables
+        run: echo "TODAY=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Generate Release Notes
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "GitHub Actions"
+          RELEASE_BRANCH="release/daily/$TODAY"
+          RETENTION_BRANCH="release-retention/daily/$TODAY"
+          ACTIVATION_BRANCH="release-activation/daily/$TODAY"
 
-      - name: Generate Release Version
-        id: version
-        run: echo "VERSION=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+          NOTES="## Changes in this release\n\n"
 
-      - name: Detect Release and Team Branches
-        id: detect_branches
-        run: |
-          DATE=$(date +'%Y-%m-%d')
-
-          # Define expected branch names
-          RELEASE_BRANCH="release/daily/$DATE"
-          RETENTION_BRANCH="release-retention/daily/$DATE"
-          ACTIVATION_BRANCH="release-activation/daily/$DATE"
-
-          echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> $GITHUB_ENV
-          echo "RETENTION_BRANCH=$RETENTION_BRANCH" >> $GITHUB_ENV
-          echo "ACTIVATION_BRANCH=$ACTIVATION_BRANCH" >> $GITHUB_ENV
-
-      - name: Gather Commits
-        id: collect_commits
-        run: |
-          NOTES="## Changes in this release\n"
-
-          # Function to extract commits from a branch
           get_commits() {
-            BRANCH=$1
-            CATEGORY=$2
-
-            COMMITS=$(git log $(git merge-base main $BRANCH)..$BRANCH --pretty=format:'- **%h**: %s' --no-merges)
-
-            if [[ ! -z "$COMMITS" ]]; then
-              NOTES+="\n### $CATEGORY\n$COMMITS\n"
+            local branch=$1
+            if git show-ref --quiet refs/remotes/origin/$branch; then
+              local base=$(git merge-base main origin/$branch)
+              local commits=$(git log $base..origin/$branch --oneline)
+              if [[ ! -z "$commits" ]]; then
+                NOTES+="### ${branch}\n"
+                while IFS= read -r line; do
+                  NOTES+="- $line\n"
+                done <<< "$commits"
+                NOTES+="\n"
+              fi
             fi
           }
 
-          get_commits "$RETENTION_BRANCH" "Retention"
-          get_commits "$ACTIVATION_BRANCH" "Activation"
+          get_commits "$RETENTION_BRANCH"
+          get_commits "$ACTIVATION_BRANCH"
 
-          echo "NOTES<<EOF" >> $GITHUB_ENV
-          echo -e "$NOTES" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          echo -e "$NOTES" | tee -a CHANGELOG.md
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.VERSION }}
-          name: Release ${{ env.VERSION }}
-          body: "${{ env.NOTES }}"
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update CHANGELOG
+      - name: Commit and Push CHANGELOG.md
         run: |
-          echo -e "## Release ${{ env.VERSION }}\n" >> CHANGELOG.md
-          echo -e "${{ env.NOTES }}" >> CHANGELOG.md
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
           git add CHANGELOG.md
-          git commit -m "Update changelog for ${{ env.VERSION }}"
+          git commit -m "Update release notes for $TODAY" || echo "No changes to commit"
           git push origin main
