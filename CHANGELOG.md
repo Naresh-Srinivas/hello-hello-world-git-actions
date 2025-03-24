@@ -26,3 +26,130 @@ fe125ad - Initial commit\nafa58f4 - added initial code\nddc6ba3 - added release 
 
 - **5045a07**: added activation code\n- **406e88d**: updated yml
 
+## Release 2025.03.24
+
+## Changes in this release
+
+### Other Changes ()
+
+
+### Other Changes ()
+
+
+### Other Changes ()
+
+
+### Other Changes ()
+
+
+### Other Changes ()
+
+
+### Other Changes ()
+
+
+### Other Changes ()
+
+
+### Other Changes (release-branch-today-test)
+
+
+### Other Changes (release-branch-today)
+
+
+### Other Changes (release-branch-today)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Other Changes (release-branch)
+
+
+### Activation
+
+
+### Other Changes (release-branch)
+
+
+### Activation
+
+
+### Activation
+
+
+### Activation
+
+
+### Activation
+
+
+### Activation
+
+
+### Activation
+
+
+### Activation
+
+
+### Activation
+
+
