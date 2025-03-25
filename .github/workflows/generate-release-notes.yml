@@ -22,7 +22,7 @@ jobs:
         run: |
           RELEASE_BRANCH=$(git branch -r --sort=-committerdate | grep "release/daily" | head -n 1 | sed 's/origin\///' | awk '{$1=$1};1')
           RELEASE_DATE=$(echo "$RELEASE_BRANCH" | grep -oE "[0-9]{4}-[0-9]{2}-[0-9]{2}")
-          
+
           echo "Detected Release Branch: $RELEASE_BRANCH"
           echo "Detected Release Date: $RELEASE_DATE"
 
@@ -45,11 +45,19 @@ jobs:
           echo "## Changes in this release" > release_notes.md
 
           echo -e "\n### Activation Team" >> release_notes.md
-          ACT_COMMITS=$(git log --oneline $ACTIVATION_BRANCH..origin/$RELEASE_BRANCH || echo "No commits for today.")
+          if git show-ref --verify --quiet refs/remotes/$ACTIVATION_BRANCH; then
+            ACT_COMMITS=$(git log --oneline $ACTIVATION_BRANCH..origin/$RELEASE_BRANCH)
+          else
+            ACT_COMMITS="No commits for today."
+          fi
           echo -e "$ACT_COMMITS" >> release_notes.md
 
           echo -e "\n### Retention Team" >> release_notes.md
-          RET_COMMITS=$(git log --oneline $RETENTION_BRANCH..origin/$RELEASE_BRANCH || echo "No commits for today.")
+          if git show-ref --verify --quiet refs/remotes/$RETENTION_BRANCH; then
+            RET_COMMITS=$(git log --oneline $RETENTION_BRANCH..origin/$RELEASE_BRANCH)
+          else
+            RET_COMMITS="No commits for today."
+          fi
           echo -e "$RET_COMMITS" >> release_notes.md
 
       - name: Upload Release Notes
