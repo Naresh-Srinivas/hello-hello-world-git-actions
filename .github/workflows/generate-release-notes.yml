@@ -1,13 +1,12 @@
 name: Generate Release Notes
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
 
 jobs:
-  generate-release-notes:
+  release-notes:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -15,10 +14,7 @@ jobs:
         with:
           fetch-depth: 0  # Ensure full history is available
 
-      - name: Fetch all branches
-        run: git fetch --prune --all  # Ensure all remote branches are available
-
-      - name: Detect Release Branch & Date
+      - name: Identify Latest Release Branch
         run: |
           RELEASE_BRANCH=$(git branch -r --sort=-committerdate | grep "release/daily" | head -n 1 | sed 's/origin\///' | awk '{$1=$1};1')
           RELEASE_DATE=$(echo "$RELEASE_BRANCH" | grep -oE "[0-9]{4}-[0-9]{2}-[0-9]{2}")
@@ -29,13 +25,13 @@ jobs:
           echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> $GITHUB_ENV
           echo "RELEASE_DATE=$RELEASE_DATE" >> $GITHUB_ENV
 
-      - name: Get Latest Merge Commit
+      - name: Get Latest Merge Commit in Release Branch
         run: |
           MERGE_COMMIT=$(git log --oneline --merges origin/$RELEASE_BRANCH | grep "Merge pull request" | head -n 1 | awk '{print $1}')
-          echo "MERGE_COMMIT=$MERGE_COMMIT" >> $GITHUB_ENV
           echo "Latest Merge Commit: $MERGE_COMMIT"
+          echo "MERGE_COMMIT=$MERGE_COMMIT" >> $GITHUB_ENV
 
-      - name: Get Team Branches & Commits
+      - name: Generate Release Notes
         run: |
           RETENTION_BRANCH="origin/release-retention/daily/$RELEASE_DATE"
           ACTIVATION_BRANCH="origin/release-activation/daily/$RELEASE_DATE"
@@ -45,22 +41,14 @@ jobs:
           echo "## Changes in this release" > release_notes.md
 
           echo -e "\n### Activation Team" >> release_notes.md
-          if git show-ref --verify --quiet refs/remotes/$ACTIVATION_BRANCH; then
-            ACT_COMMITS=$(git log --oneline $ACTIVATION_BRANCH..origin/$RELEASE_BRANCH)
-          else
-            ACT_COMMITS="No commits for today."
-          fi
+          ACT_COMMITS=$(git log --oneline --no-merges $ACTIVATION_BRANCH || echo "No commits for today.")
           echo -e "$ACT_COMMITS" >> release_notes.md
 
           echo -e "\n### Retention Team" >> release_notes.md
-          if git show-ref --verify --quiet refs/remotes/$RETENTION_BRANCH; then
-            RET_COMMITS=$(git log --oneline $RETENTION_BRANCH..origin/$RELEASE_BRANCH)
-          else
-            RET_COMMITS="No commits for today."
-          fi
+          RET_COMMITS=$(git log --oneline --no-merges $RETENTION_BRANCH || echo "No commits for today.")
           echo -e "$RET_COMMITS" >> release_notes.md
 
-      - name: Upload Release Notes
+      - name: Upload Release Notes as Artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-notes
