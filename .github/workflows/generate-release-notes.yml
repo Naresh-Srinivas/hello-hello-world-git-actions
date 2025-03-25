@@ -12,27 +12,24 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Ensure full history is available
+          fetch-depth: 0  # Get full history
 
       - name: Fetch all branches
         run: git fetch --prune --all
 
       - name: Detect Latest Release Date
         run: |
-          # Get the latest remote release branch, e.g. "release/daily/2025-02-02"
+          # Get the latest remote release branch (e.g. release/daily/2025-02-02)
           RELEASE_BRANCH=$(git branch -r --sort=-committerdate | grep "release/daily" | head -n 1 | sed 's/origin\///' | awk '{$1=$1};1')
           RELEASE_DATE=$(echo "$RELEASE_BRANCH" | grep -oE "[0-9]{4}-[0-9]{2}-[0-9]{2}")
-          
           echo "Detected Release Branch: $RELEASE_BRANCH"
           echo "Detected Release Date: $RELEASE_DATE"
           echo "RELEASE_DATE=$RELEASE_DATE" >> $GITHUB_ENV
 
       - name: Set Team Branches
         run: |
-          # Construct team branch names using the release date
           RETENTION_BRANCH="release-retention/daily/$RELEASE_DATE"
           ACTIVATION_BRANCH="release-activation/daily/$RELEASE_DATE"
-          
           echo "RETENTION_BRANCH=$RETENTION_BRANCH" >> $GITHUB_ENV
           echo "ACTIVATION_BRANCH=$ACTIVATION_BRANCH" >> $GITHUB_ENV
           echo "Checking for team branches: origin/$RETENTION_BRANCH and origin/$ACTIVATION_BRANCH"
@@ -42,20 +39,25 @@ jobs:
           echo "## Changes in this release" > release_notes.md
           echo "" >> release_notes.md
 
+          # Process Activation Team commits
           echo "### Activation Team" >> release_notes.md
-          if git ls-remote --exit-code origin "$ACTIVATION_BRANCH" >/dev/null; then
-            # Use merge-base to get commits unique to the activation branch relative to main
-            ACT_COMMITS=$(git log --oneline --no-merges $(git merge-base origin/main origin/"$ACTIVATION_BRANCH")..origin/"$ACTIVATION_BRANCH" || echo "No commits for Activation Team today.")
+          if git ls-remote --exit-code origin "release-activation/daily/$RELEASE_DATE" >/dev/null; then
+            MB_ACT=$(git merge-base origin/main origin/"$ACTIVATION_BRANCH")
+            echo "Activation merge base: $MB_ACT"  # Debug output
+            ACT_COMMITS=$(git log --oneline --no-merges "$MB_ACT"..origin/"$ACTIVATION_BRANCH" || echo "No commits for Activation Team today.")
             echo -e "$ACT_COMMITS" >> release_notes.md
           else
             echo "No Activation Team branch for $RELEASE_DATE." >> release_notes.md
           fi
 
           echo "" >> release_notes.md
+
+          # Process Retention Team commits
           echo "### Retention Team" >> release_notes.md
-          if git ls-remote --exit-code origin "$RETENTION_BRANCH" >/dev/null; then
-            # Use merge-base to get commits unique to the retention branch relative to main
-            RET_COMMITS=$(git log --oneline --no-merges $(git merge-base origin/main origin/"$RETENTION_BRANCH")..origin/"$RETENTION_BRANCH" || echo "No commits for Retention Team today.")
+          if git ls-remote --exit-code origin "release-retention/daily/$RELEASE_DATE" >/dev/null; then
+            MB_RET=$(git merge-base origin/main origin/"$RETENTION_BRANCH")
+            echo "Retention merge base: $MB_RET"  # Debug output
+            RET_COMMITS=$(git log --oneline --no-merges "$MB_RET"..origin/"$RETENTION_BRANCH" || echo "No commits for Retention Team today.")
             echo -e "$RET_COMMITS" >> release_notes.md
           else
             echo "No Retention Team branch for $RELEASE_DATE." >> release_notes.md
