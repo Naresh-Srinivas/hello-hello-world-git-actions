@@ -13,14 +13,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Ensure full history is available
 
       - name: Fetch all branches
-        run: git fetch --prune --all
+        run: git fetch --prune --all  # Ensure all remote branches are available
 
       - name: Detect Release Branch & Date
         run: |
-          RELEASE_BRANCH=$(git branch -r --sort=-committerdate | grep "release/daily" | head -n 1 | sed 's/origin\///')
+          RELEASE_BRANCH=$(git branch -r --sort=-committerdate | grep "release/daily" | head -n 1 | sed 's/origin\///' | awk '{$1=$1};1')
           RELEASE_DATE=$(echo "$RELEASE_BRANCH" | grep -oE "[0-9]{4}-[0-9]{2}-[0-9]{2}")
           
           echo "Detected Release Branch: $RELEASE_BRANCH"
@@ -31,25 +31,25 @@ jobs:
 
       - name: Get Latest Merge Commit
         run: |
-          MERGE_COMMIT=$(git log --oneline --merges $RELEASE_BRANCH | grep "Merge pull request" | head -n 1 | awk '{print $1}')
+          MERGE_COMMIT=$(git log --oneline --merges origin/$RELEASE_BRANCH | grep "Merge pull request" | head -n 1 | awk '{print $1}')
           echo "MERGE_COMMIT=$MERGE_COMMIT" >> $GITHUB_ENV
           echo "Latest Merge Commit: $MERGE_COMMIT"
 
       - name: Get Team Branches & Commits
         run: |
-          RETENTION_BRANCH="release-retention/daily/$RELEASE_DATE"
-          ACTIVATION_BRANCH="release-activation/daily/$RELEASE_DATE"
+          RETENTION_BRANCH="origin/release-retention/daily/$RELEASE_DATE"
+          ACTIVATION_BRANCH="origin/release-activation/daily/$RELEASE_DATE"
 
           echo "Checking branches: $RETENTION_BRANCH and $ACTIVATION_BRANCH"
 
           echo "## Changes in this release" > release_notes.md
 
           echo -e "\n### Activation Team" >> release_notes.md
-          ACT_COMMITS=$(git log --oneline $ACTIVATION_BRANCH..$RELEASE_BRANCH || echo "No commits for today.")
+          ACT_COMMITS=$(git log --oneline $ACTIVATION_BRANCH..origin/$RELEASE_BRANCH || echo "No commits for today.")
           echo -e "$ACT_COMMITS" >> release_notes.md
 
           echo -e "\n### Retention Team" >> release_notes.md
-          RET_COMMITS=$(git log --oneline $RETENTION_BRANCH..$RELEASE_BRANCH || echo "No commits for today.")
+          RET_COMMITS=$(git log --oneline $RETENTION_BRANCH..origin/$RELEASE_BRANCH || echo "No commits for today.")
           echo -e "$RET_COMMITS" >> release_notes.md
 
       - name: Upload Release Notes
