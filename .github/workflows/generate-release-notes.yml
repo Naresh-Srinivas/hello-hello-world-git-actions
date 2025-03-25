@@ -1,82 +1,64 @@
 name: Generate Release Notes
 
 on:
+  workflow_dispatch:  # Allows manual triggering of the workflow
   push:
     branches:
-      - main  # Runs after merging release branch into main
+      - main  # Runs when release branch is merged to main
 
 jobs:
   generate-release-notes:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history to detect merges
+          fetch-depth: 0  # Ensures we have the full history
 
-      - name: Set up Git
+      - name: Detect Release Branch & Date
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-
-      - name: Extract Date from Latest Release Merge
-        run: |
-          # Get latest merge commit message in main branch
-          LAST_MERGE_MSG=$(git log --merges --oneline -n 1 origin/main)
-
-          # Extract release branch name from merge commit (e.g., release/daily/YYYY-MM-DD)
-          RELEASE_BRANCH=$(echo "$LAST_MERGE_MSG" | grep -oE 'release/daily/[0-9]{4}-[0-9]{2}-[0-9]{2}')
-
-          if [ -z "$RELEASE_BRANCH" ]; then
-            echo "No release branch found in last merge. Exiting."
-            exit 1
-          fi
-
-          # Extract the date from the branch name
-          RELEASE_DATE=$(echo "$RELEASE_BRANCH" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+          # Find latest merged release branch into main
+          RELEASE_BRANCH=$(git log --merges --oneline origin/main | grep "Merge pull request" | grep "release/daily" | head -n 1 | awk '{print $NF}')
+          
+          # Extract the release date from the branch name
+          RELEASE_DATE=$(echo "$RELEASE_BRANCH" | grep -oE "[0-9]{4}-[0-9]{2}-[0-9]{2}")
+          
+          echo "Detected Release Branch: $RELEASE_BRANCH"
           echo "Detected Release Date: $RELEASE_DATE"
-          echo "RELEASE_DATE=$RELEASE_DATE" >> $GITHUB_ENV
+
+          # Export environment variables
           echo "RELEASE_BRANCH=$RELEASE_BRANCH" >> $GITHUB_ENV
+          echo "RELEASE_DATE=$RELEASE_DATE" >> $GITHUB_ENV
 
-      - name: Generate Release Notes
+      - name: Get Latest Merge Commit
         run: |
+          MERGE_COMMIT=$(git log --oneline --merges origin/$RELEASE_BRANCH | grep "Merge pull request" | head -n 1 | awk '{print $1}')
+          echo "MERGE_COMMIT=$MERGE_COMMIT" >> $GITHUB_ENV
+          echo "Latest Merge Commit: $MERGE_COMMIT"
+
+      - name: Get Team Branches & Commits
+        run: |
+          # Define retention and activation branches
+          RETENTION_BRANCH="release-retention/daily/$RELEASE_DATE"
+          ACTIVATION_BRANCH="release-activation/daily/$RELEASE_DATE"
+
+          echo "Checking branches: $RETENTION_BRANCH and $ACTIVATION_BRANCH"
+
+          # Create the release notes file
           echo "## Changes in this release" > release_notes.md
-          echo "" >> release_notes.md
 
-          # Get the last merge commit in release branch
-          LAST_MERGE=$(git log --merges --oneline origin/main -n 1 | cut -d' ' -f1)
+          # Fetch Activation Team commits
+          echo -e "\n### Activation Team" >> release_notes.md
+          ACT_COMMITS=$(git log --oneline origin/$ACTIVATION_BRANCH..origin/$RELEASE_BRANCH || echo "No commits for today.")
+          echo -e "$ACT_COMMITS" >> release_notes.md
 
-          # Extract commits for each team using the detected release date
-          for TEAM in "activation" "retention"; do
-            BRANCH="release-${TEAM}/daily/$RELEASE_DATE"
+          # Fetch Retention Team commits
+          echo -e "\n### Retention Team" >> release_notes.md
+          RET_COMMITS=$(git log --oneline origin/$RETENTION_BRANCH..origin/$RELEASE_BRANCH || echo "No commits for today.")
+          echo -e "$RET_COMMITS" >> release_notes.md
 
-            if git ls-remote --exit-code origin $BRANCH; then
-              echo "### ${TEAM^} Team" >> release_notes.md
-              echo "" >> release_notes.md
-
-              # Get commits merged into the release branch
-              git log --oneline --no-merges $LAST_MERGE..origin/$RELEASE_BRANCH --grep="$BRANCH" | while read -r line; do
-                echo "- $line" >> release_notes.md
-              done
-
-              # Also add individual commits from the team branch
-              git log --oneline --no-merges origin/main..origin/$BRANCH | while read -r line; do
-                echo "- $line" >> release_notes.md
-              done
-
-              echo "" >> release_notes.md
-            else
-              echo "### ${TEAM^} Team" >> release_notes.md
-              echo "No commits for today." >> release_notes.md
-              echo "" >> release_notes.md
-            fi
-          done
-
-          cat release_notes.md  # Debugging: Show the output
-
-      - name: Commit and push Release Notes
-        run: |
-          git add release_notes.md
-          git commit -m "Update release notes for $RELEASE_DATE" || echo "No changes to commit"
-          git push origin main || echo "No changes to push"
+      - name: Upload Release Notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release_notes.md
