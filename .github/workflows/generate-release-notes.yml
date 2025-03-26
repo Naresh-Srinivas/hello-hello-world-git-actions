@@ -55,9 +55,7 @@ jobs:
           # Process Retention Team commits
           echo "### Retention Team" >> release_notes.md
           if git ls-remote --exit-code origin "release-retention/daily/$RELEASE_DATE" >/dev/null; then
-            MB_RET=$(git merge-base origin/main origin/"$RETENTION_BRANCH")
-            echo "Retention merge base: $MB_RET"  # Debug output
-            RET_COMMITS=$(git log --oneline --no-merges "$MB_RET"..origin/"$RETENTION_BRANCH" || echo "No commits for Retention Team today.")
+            RET_COMMITS=$(git log --oneline --no-merges $(git merge-base origin/main origin/"$RETENTION_BRANCH")..origin/"$RETENTION_BRANCH")
             echo -e "$RET_COMMITS" >> release_notes.md
           else
             echo "No Retention Team branch for $RELEASE_DATE." >> release_notes.md
