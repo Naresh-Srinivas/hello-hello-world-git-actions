@@ -56,8 +56,8 @@ jobs:
               else
                 echo "Merge commit for $BRANCH_NAME: $MERGE_COMMIT"
 
-                # Extract only merge commits inside the retention/activation branch
-                MERGE_COMMITS=$(git log --oneline --merges --first-parent origin/"$BRANCH_NAME" --reverse || echo "No feature merges found.")
+                # Get commits that were part of the merged branch (for squash & regular merges)
+                COMMITS=$(git log --oneline "$MERGE_COMMIT"^1.."$MERGE_COMMIT" || echo "No commits found.")
 
                 echo -e "$MERGE_COMMITS" >> release_notes.md
               fi
