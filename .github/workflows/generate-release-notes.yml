@@ -58,7 +58,7 @@ jobs:
                 echo "Merge commit for $BRANCH_NAME: $MERGE_COMMIT"
 
                 # Get commits that were part of the merged branch (for squash & regular merges)
-                COMMITS=$(git log --oneline "$MERGE_COMMIT"^1.."$MERGE_COMMIT" --no-merges || echo "No commits found.")
+                COMMITS=$(git log --oneline "$MERGE_COMMIT"^1.."$MERGE_COMMIT" || echo "No commits found.")
 
                 echo -e "$COMMITS" >> release_notes.md
               fi
