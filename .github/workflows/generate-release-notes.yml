@@ -19,8 +19,8 @@ jobs:
 
       - name: Detect Latest Release Date
         run: |
-          # Get the latest release branch (e.g., release/daily/2025-02-02)
-          RELEASE_BRANCH=$(git branch -r --sort=-committerdate | grep "release/daily" | head -n 1 | sed 's/origin\///' | awk '{$1=$1};1')
+          # Get the latest release branch (e.g., release/daily/YYYY-MM-DD)
+          RELEASE_BRANCH=$(git branch -r --sort=-committerdate | grep "release/daily" | head -n 1 | sed 's/origin\///')
           RELEASE_DATE=$(echo "$RELEASE_BRANCH" | grep -oE "[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
           echo "Detected Release Branch: $RELEASE_BRANCH"
@@ -50,15 +50,15 @@ jobs:
               git fetch --prune --all
 
               # Find the merge commit in main
-              MERGE_COMMIT=$(git log --oneline --grep="$BRANCH_NAME" origin/main | head -n 1 | awk '{print $1}')
+              MERGE_COMMIT=$(git log --oneline --merges --grep="$BRANCH_NAME" origin/main | head -n 1 | awk '{print $1}')
 
               if [ -z "$MERGE_COMMIT" ]; then
                 echo "No merge commit found for $BRANCH_NAME. Skipping..." >> release_notes.md
               else
                 echo "Merge commit for $BRANCH_NAME: $MERGE_COMMIT"
 
-                # Handle Squash Merge: Extract commits before merge
-                COMMITS=$(git reflog show --pretty=format:"%h %s" --grep-reflog="$BRANCH_NAME" || echo "No commits found.")
+                # Get commits that were part of the merged branch (for squash & regular merges)
+                COMMITS=$(git log --oneline "$MERGE_COMMIT"^1.."$MERGE_COMMIT" --no-merges || echo "No commits found.")
 
                 echo -e "$COMMITS" >> release_notes.md
               fi
