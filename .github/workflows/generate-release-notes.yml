@@ -70,8 +70,9 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
+          tag_name: "release-${{ env.RELEASE_DATE }}"  # Ensure a valid tag
           name: "Release ${{ env.RELEASE_DATE }}"
           body_path: release_notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
