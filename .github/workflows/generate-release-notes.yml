@@ -9,7 +9,7 @@ jobs:
   generate-release-notes:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Grants permission to create releases
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -19,9 +19,9 @@ jobs:
       - name: Fetch all branches
         run: git fetch --prune --all
 
+      # Get the latest release branch (e.g., release/daily/YYYY-MM-DD)
       - name: Detect Latest Release Date
         run: |
-          # Get the latest release branch (e.g., release/daily/YYYY-MM-DD)
           RELEASE_BRANCH=$(git branch -r --sort=-committerdate | grep "release/daily" | head -n 1 | sed 's/origin\///')
           RELEASE_DATE=$(echo "$RELEASE_BRANCH" | grep -oE "[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
@@ -30,6 +30,7 @@ jobs:
 
           echo "RELEASE_DATE=$RELEASE_DATE" >> $GITHUB_ENV
 
+      # Fetch the latest team wise release branch
       - name: Set Team Branches
         run: |
           RETENTION_BRANCH="release-retention/daily/$RELEASE_DATE"
@@ -39,6 +40,7 @@ jobs:
 
           echo "Checking for team branches: origin/$RETENTION_BRANCH, origin/$ACTIVATION_BRANCH, origin/$LENDING_BRANCH, origin/$NEK_BRANCH"
 
+      # Generate the Release Note team wise
       - name: Generate Release Notes
         run: |
           echo "## Changes in this release" > release_notes.md
@@ -50,7 +52,7 @@ jobs:
             echo "### $TEAM_NAME/$RELEASE_DATE Team" >> release_notes.md
 
             # Get only merge commits containing 'TEAM_NAME {date}'
-            TEAM_COMMITS=$(git log --oneline --merges --grep="$TEAM_NAME $RELEASE_DATE" origin/main)
+            TEAM_COMMITS=$(git log --pretty=format:"%h %s by @%an" --oneline --merges --grep="$TEAM_NAME $RELEASE_DATE" origin/main)
 
             if [[ -z "$TEAM_COMMITS" ]]; then
               echo "No $TEAM_NAME-related merge commits found." >> release_notes.md
@@ -69,6 +71,7 @@ jobs:
 
           cat release_notes.md
 
+      # Creates and publishes the release note to the release section
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -76,6 +79,4 @@ jobs:
           name: "Release ${{ env.RELEASE_DATE }}"
           body_path: release_notes.md
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Uses default GITHUB_TOKEN
-
-
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
