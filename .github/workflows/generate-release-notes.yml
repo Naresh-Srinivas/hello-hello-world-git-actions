@@ -12,13 +12,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Get full history
+          fetch-depth: 0
 
       - name: Fetch all branches
         run: git fetch --prune --all
 
       - name: Detect Latest Release Date
         run: |
+          # Get the latest release branch (e.g., release/daily/YYYY-MM-DD)
           RELEASE_BRANCH=$(git branch -r --sort=-committerdate | grep "release/daily" | head -n 1 | sed 's/origin\///')
           RELEASE_DATE=$(echo "$RELEASE_BRANCH" | grep -oE "[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
@@ -41,33 +42,24 @@ jobs:
           echo "## Changes in this release" > release_notes.md
           echo "" >> release_notes.md
 
+          # Function to get merge commits for a specific team
           get_team_commits() {
-            TEAM_NAME=$1
-            TEAM_BRANCH="release-${TEAM_NAME,,}/daily/$RELEASE_DATE"
+            TEAM_NAME=$1  # Example: "Retention"
+            echo "### $TEAM_NAME/$RELEASE_DATE Team" >> release_notes.md
 
-            echo "### ${TEAM_NAME^}/$RELEASE_DATE Team" >> release_notes.md
+            # Get only merge commits containing 'TEAM_NAME {date}'
+            TEAM_COMMITS=$(git log --oneline --merges --grep="$TEAM_NAME $RELEASE_DATE" origin/main)
 
-            # Find the merge commit that merged this team branch into origin/main
-            MERGE_COMMIT=$(git log --oneline --merges --grep="$TEAM_BRANCH" origin/main | head -n 1 | awk '{print $1}')
-
-            if [[ -z "$MERGE_COMMIT" ]]; then
-              echo "No merge commit found for $TEAM_BRANCH. Skipping..." >> release_notes.md
+            if [[ -z "$TEAM_COMMITS" ]]; then
+              echo "No $TEAM_NAME-related merge commits found." >> release_notes.md
             else
-              echo "Merge commit for $TEAM_BRANCH: $MERGE_COMMIT"
-
-              # Get feature branches merged into this team branch before it was merged into main
-              TEAM_COMMITS=$(git log --oneline --merges --first-parent origin/"$TEAM_BRANCH" --reverse || echo "No feature merges found.")
-
-              if [[ -z "$TEAM_COMMITS" ]]; then
-                echo "No $TEAM_NAME-related merge commits found." >> release_notes.md
-              else
-                echo -e "$TEAM_COMMITS" >> release_notes.md
-              fi
+              echo -e "$TEAM_COMMITS" >> release_notes.md
             fi
+
             echo "" >> release_notes.md
           }
 
-          # Run for all teams
+          # Run the function for each team
           get_team_commits "Activation"
           get_team_commits "Retention"
           get_team_commits "Lending"
